@@ -70,6 +70,7 @@ type Bindings = {
 	SIGN_SECRETS?: string;
 	// 如果使用 Worker KV 或其他绑定，请在此处添加
 	ALLOWED_DOMAINS?: string;
+	GITHUB_APP_SLUG: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -125,7 +126,7 @@ app.use(
 
 // --- 配置常量 ---
 // 警告：请务必将下面的值替换为您自己的 GitHub App 的实际信息！
-const GITHUB_APP_SLUG = "cent-accounting";
+// const GITHUB_APP_SLUG = "cent-accounting";
 
 const INVALID_REDIRECT_MSG =
 	"redirect url not valid, see https://github.com/glink25/github-login?tab=readme-ov-file#%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8";
@@ -267,7 +268,7 @@ app.get("/api/github-oauth/authorized", async (c) => {
 			headers: {
 				Authorization: `Bearer ${accessToken}`,
 				Accept: "application/vnd.github.v3+json",
-				"User-Agent": `${GITHUB_APP_SLUG} (Cloudflare Worker)`, // 推荐设置 User-Agent
+				"User-Agent": `${c.env.GITHUB_APP_SLUG} (Cloudflare Worker)`, // 推荐设置 User-Agent
 			},
 		},
 	);
@@ -305,7 +306,7 @@ app.get("/api/github-oauth/authorized", async (c) => {
 			"User has not installed the app. Redirecting to installation page.",
 		);
 		const installUrl = new URL(
-			`https://github.com/apps/${GITHUB_APP_SLUG}/installations/new`,
+			`https://github.com/apps/${c.env.GITHUB_APP_SLUG}/installations/new`,
 		);
 		installUrl.searchParams.set("state", state);
 		return c.redirect(installUrl);

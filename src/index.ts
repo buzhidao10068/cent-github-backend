@@ -71,6 +71,7 @@ type Bindings = {
 	// 如果使用 Worker KV 或其他绑定，请在此处添加
 	ALLOWED_DOMAINS?: string;
 	GITHUB_APP_SLUG: string;
+	ENCRYPTION_SECRETS: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();

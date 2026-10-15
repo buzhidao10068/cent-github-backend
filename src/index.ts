@@ -51,7 +51,8 @@ import { HTTPException } from "hono/http-exception";
 import { cors } from "hono/cors";
 import { isHttpOrHttpsRedirect, verifyRedirectSign } from "./lib/sign_verify";
 import { encodeState, decodeState } from "./lib/state";
-import white_list from "./white_list";
+// import white_list from "./white_list";
+import { getWhiteList } from "./white_list";
 import proxyRouter from "./routes/proxy";
 import currencyRouter from "./routes/currency";
 
@@ -68,14 +69,18 @@ type Bindings = {
 	/** 非 http(s) redirect_uri 时 authorize 查询参数 sign 的 AES-GCM 密钥；生产环境用 wrangler secret put SIGN_SECRETS */
 	SIGN_SECRETS?: string;
 	// 如果使用 Worker KV 或其他绑定，请在此处添加
+	ALLOWED_DOMAINS?: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
 app.use(
 	"*",
-	cors({
-		// 允许所有来源访问，这是实现 CORS 绕过的关键
-		origin: white_list,
+	async (c, next) => {
+    const corsMiddlewareHandler = cors({
+        origin: getWhiteList(c.env),
+	// cors({
+	// 	// 允许所有来源访问，这是实现 CORS 绕过的关键
+	// 	origin: white_list,
 		// 允许所有常见的 HTTP 方法
 		allowMethods: [
 			"GET",
@@ -113,7 +118,9 @@ app.use(
 		],
 		// 浏览器缓存 CORS 预检结果的时间（秒）
 		maxAge: 86400, // 24小时
-	}),
+	});
+	return corsMiddlewareHandler(c, next);
+	},
 );
 
 // --- 配置常量 ---
@@ -122,8 +129,11 @@ const GITHUB_APP_SLUG = "cent-accounting";
 
 const INVALID_REDIRECT_MSG =
 	"redirect url not valid, see https://github.com/glink25/github-login?tab=readme-ov-file#%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8";
-const isValidRedirect = (url: string) => {
-	return white_list.some((v) => url.startsWith(v));
+// const  = (url: string) => {
+// 	return white_list.some((v) => url.startsWith(v));
+// };
+const isValidRedirect = (url: string, env: Record<string, string>) => {
+    return getWhiteList(env).some((v) => url.startsWith(v));
 };
 
 /**
@@ -141,9 +151,9 @@ app.get("/api/github-oauth/authorize", async (c) => {
 		c.status(400);
 		return c.json({ error: "`redirect_uri` is required." });
 	}
-	if (!isValidRedirect(appReturnUrl)) {
-		c.status(400);
-		return c.json({ error: INVALID_REDIRECT_MSG });
+	if (!isValidRedirect(appReturnUrl, env)) {
+	c.status(400);
+	return c.json({ error: INVALID_REDIRECT_MSG });
 	}
 	if (!isHttpOrHttpsRedirect(appReturnUrl)) {
 		const signSecret = c.env.SIGN_SECRETS?.trim();
@@ -203,7 +213,7 @@ app.get("/api/github-oauth/authorized", async (c) => {
 		throw new HTTPException(400, { message: err.message });
 	}
 
-	if (!isValidRedirect(appReturnUrl)) {
+	if (!isValidRedirect(appReturnUrl, env)) {
 		throw new HTTPException(400, { message: INVALID_REDIRECT_MSG });
 	}
 	const returnUrl = new URL(appReturnUrl);
@@ -364,7 +374,7 @@ app.get("/api/gitee-oauth/authorize", async (c) => {
 		c.status(400);
 		return c.json({ error: "`redirect_uri` is required." });
 	}
-	if (!isValidRedirect(appReturnUrl)) {
+	if (!isValidRedirect(appReturnUrl, env)) {
 		c.status(400);
 		return c.json({ error: INVALID_REDIRECT_MSG });
 	}
@@ -421,7 +431,7 @@ app.get("/api/gitee-oauth/authorized", async (c) => {
 		throw new HTTPException(400, { message: err.message });
 	}
 
-	if (!isValidRedirect(appReturnUrl)) {
+	if (!isValidRedirect(appReturnUrl, env)) {
 		throw new HTTPException(400, { message: INVALID_REDIRECT_MSG });
 	}
 

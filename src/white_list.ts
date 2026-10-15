@@ -10,3 +10,10 @@ export default [
 	"dailycent://",
 	"dailycent-auth://",
 ];
+export function getWhiteList(env: Env): string[] {
+    const allowedDomains = env.ALLOWED_DOMAINS;
+    if (!allowedDomains) {
+        return defaultWhiteList;
+    }
+    return allowedDomains.split(',').map(domain => domain.trim());
+}
